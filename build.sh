@@ -5,7 +5,7 @@
 
 DEVICE=/dev/xvdb
 ROOTFS=/rootfs
-IXGBEVF_VER=3.0.2
+IXGBEVF_VER=3.1.1
 
 cat | parted ${DEVICE} << END
 mktable gpt
