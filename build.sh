@@ -156,6 +156,7 @@ system_info:
 
 mounts:
  - [ ephemeral0, /media/ephemeral0 ]
+ - [ ephemeral1, /media/ephemeral1 ]
  - [ swap, none, swap, sw, "0", "0" ]
 
 datasource_list: [ Ec2, None ]
