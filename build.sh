@@ -16,7 +16,7 @@ quit
 
 
 END
-mkfs.xfs -L / ${DEVICE}2
+mkfs.xfs -L root ${DEVICE}2
 mkdir -p $ROOTFS
 mount ${DEVICE}2 $ROOTFS
 
@@ -54,7 +54,7 @@ echo 'ZONE="UTC"' > ${ROOTFS}/etc/sysconfig/clock
 
 # fstab
 cat > ${ROOTFS}/etc/fstab << END
-LABEL=/ /         xfs    defaults,relatime  1 1
+LABEL=root /         xfs    defaults,relatime  1 1
 tmpfs   /dev/shm  tmpfs   defaults           0 0
 devpts  /dev/pts  devpts  gid=5,mode=620     0 0
 sysfs   /sys      sysfs   defaults           0 0
