@@ -1,11 +1,14 @@
 #!/bin/bash -ex
 
 # Build a new CentOS7 install on EBS volume in a chroot
-# Run from RHEL7 instance
+# Run from RHEL7 or CentOS7 instance
 
 DEVICE=/dev/xvdb
 ROOTFS=/rootfs
 IXGBEVF_VER=3.1.2
+ENA_VER=1.0.0
+ENA_COMMIT=b594ac1
+TMPDIR=/tmp
 
 cat | parted ${DEVICE} << END
 mktable gpt
@@ -164,6 +167,8 @@ datasource_list: [ Ec2, None ]
 # vim:syntax=yaml
 END
 
+# Add additional AWS drivers
+KVER=$(chroot $ROOTFS rpm -q kernel | sed -e 's/^kernel-//')
 # Enable sr-iov
 yum --installroot=$ROOTFS --nogpgcheck -y install dkms make
 curl -L http://sourceforge.net/projects/e1000/files/ixgbevf%20stable/${IXGBEVF_VER}/ixgbevf-${IXGBEVF_VER}.tar.gz/download > /tmp/ixgbevf.tar.gz
@@ -179,11 +184,31 @@ DEST_MODULE_LOCATION[0]="/updates"
 DEST_MODULE_NAME[0]="ixgbevf"
 AUTOINSTALL="yes"
 END
-KVER=$(chroot $ROOTFS rpm -q kernel | sed -e 's/^kernel-//')
 chroot $ROOTFS dkms add -m ixgbevf -v ${IXGBEVF_VER}
 chroot $ROOTFS dkms build -m ixgbevf -v ${IXGBEVF_VER} -k $KVER
 chroot $ROOTFS dkms install -m ixgbevf -v ${IXGBEVF_VER} -k $KVER
 echo "options ixgbevf InterruptThrottleRate=1,1,1,1,1,1,1,1" > ${ROOTFS}/etc/modprobe.d/ixgbevf.conf
+# Enable Amazon ENA
+# Create an archive file locally from git first
+yum -y install git
+mkdir -p ${TMPDIR}/ena
+git clone https://github.com/amzn/amzn-drivers.git ${TMPDIR}/ena
+cd ${TMPDIR}/ena
+git archive --prefix ena-${ENA_VER}/ ${ENA_COMMIT} | tar xC ${ROOTFS}/usr/src
+cat > ${ROOTFS}/usr/src/ena-${ENA_VER}/dkms.conf << END
+PACKAGE_NAME="ena"
+PACKAGE_VERSION="${ENA_VER}"
+CLEAN="make -C kernel/linux/ena clean"
+MAKE="make -C kernel/linux/ena/ BUILD_KERNEL=\${kernelver}"
+BUILT_MODULE_NAME[0]="ena"
+BUILT_MODULE_LOCATION="kernel/linux/ena"
+DEST_MODULE_LOCATION[0]="/updates"
+DEST_MODULE_NAME[0]="ena"
+AUTOINSTALL="yes"
+END
+chroot $ROOTFS dkms add -m ena -v ${ENA_VER}
+chroot $ROOTFS dkms dkms build -m ena -v ${ENA_VER} -k ${KVER}
+chroot $ROOTFS dkms install -m ena -v ${ENA_VER} -k ${KVER}
 
 #Disable SELinux
 sed -i -e 's/^\(SELINUX=\).*/\1disabled/' ${ROOTFS}/etc/selinux/config
@@ -200,5 +225,5 @@ sync
 umount ${ROOTFS}
 
 # Snapshot the volume then create the AMI with:
-# aws ec2 register-image --name 'CentOS-7.0-test' --description 'Unofficial CentOS7 + cloud-init' --virtualization-type hvm --root-device-name /dev/sda1 --block-device-mappings '[{"DeviceName":"/dev/sda1","Ebs": { "SnapshotId": "snap-7f042d5f", "VolumeSize":5,  "DeleteOnTermination": true, "VolumeType": "gp2"}}, { "DeviceName":"/dev/xvdb","VirtualName":"ephemeral0"}, { "DeviceName":"/dev/xvdc","VirtualName":"ephemeral1"}]' --architecture x86_64 --sriov-net-support simple
+# aws ec2 register-image --name 'CentOS-7.0-test' --description 'Unofficial CentOS7 + cloud-init' --virtualization-type hvm --root-device-name /dev/sda1 --block-device-mappings '[{"DeviceName":"/dev/sda1","Ebs": { "SnapshotId": "snap-7f042d5f", "VolumeSize":5,  "DeleteOnTermination": true, "VolumeType": "gp2"}}, { "DeviceName":"/dev/xvdb","VirtualName":"ephemeral0"}, { "DeviceName":"/dev/xvdc","VirtualName":"ephemeral1"}]' --architecture x86_64 --sriov-net-support simple --ena-support
 
