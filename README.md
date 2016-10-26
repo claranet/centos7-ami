@@ -12,9 +12,12 @@ http://www.bashton.com/blog/2015/centos-7-2-1511-ami/
 
 - Uses gpt partitioning - supports root volumes over 2TB
 - Includes [out of tree ixgbevf
-  driver](http://sourceforge.net/projects/e1000/files/ixgbevf%20stable/3.0.2/)
+  driver](http://sourceforge.net/projects/e1000/files/ixgbevf%20stable/3.2.2/)
   providing [enhanced
 networking](http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/enhanced-networking.html)
+- Includes [Elastic Network
+  Adapter](https://aws.amazon.com/blogs/aws/elastic-network-adapter-high-performance-network-interface-for-amazon-ec2/)
+support
   only instance types that support it
 - Local ephemeral storage mounted at `/media/ephemeral0`
 - Default user account `ec2-user`
