@@ -26,7 +26,7 @@ mount ${DEVICE}2 $ROOTFS
 ### Basic CentOS Install
 rpm --root=$ROOTFS --initdb
 rpm --root=$ROOTFS -ivh \
-  http://mirror.bytemark.co.uk/centos/7/os/x86_64/Packages/centos-release-7-2.1511.el7.centos.2.10.x86_64.rpm
+  http://mirror.bytemark.co.uk/centos/7.3.1611/os/x86_64/Packages/centos-release-7-3.1611.el7.centos.x86_64.rpm
 # Install necessary packages
 yum --installroot=$ROOTFS --nogpgcheck -y groupinstall core
 yum --installroot=$ROOTFS --nogpgcheck -y install openssh-server grub2 acpid tuned kernel deltarpm epel-release
