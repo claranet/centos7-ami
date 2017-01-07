@@ -6,8 +6,8 @@
 DEVICE=/dev/xvdb
 ROOTFS=/rootfs
 IXGBEVF_VER=3.3.2
-ENA_VER=1.1.2
-ENA_COMMIT=a485656
+ENA_VER=1.1.3
+ENA_COMMIT=3ac3e0b
 TMPDIR=/tmp
 
 cat | parted ${DEVICE} << END
@@ -195,9 +195,6 @@ mkdir -p ${TMPDIR}/ena
 git clone https://github.com/amzn/amzn-drivers.git ${TMPDIR}/ena
 cd ${TMPDIR}/ena
 git archive --prefix ena-${ENA_VER}/ ${ENA_COMMIT} | tar xC ${ROOTFS}/usr/src
-# Temporary - workaround compile failure with new EL 7.3 kernel - see https://github.com/amzn/amzn-drivers/issues/5
-curl -sL https://github.com/amzn/amzn-drivers/files/658541/0099081480_1481751768_rhel_7_3.txt |
-  patch -p1 -d ${ROOTFS}/usr/src/ena-${ENA_VER}/
 cat > ${ROOTFS}/usr/src/ena-${ENA_VER}/dkms.conf << END
 PACKAGE_NAME="ena"
 PACKAGE_VERSION="${ENA_VER}"
