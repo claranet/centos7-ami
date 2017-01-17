@@ -6,7 +6,7 @@ attach a blank EBS volume at /dev/xvdb and the script will do the rest.
 
 If you just want to run the images, or modify using
 [Packer](http://packer.io/), you can find AMI ids at
-http://www.bashton.com/blog/2015/centos-7-2-1511-ami/
+https://www.bashton.com/blog/2017/centos-7.3-ami/
 
 ## Differences from official CentOS marketplace AMI
 
@@ -18,7 +18,6 @@ networking](http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/enhanced-networki
 - Includes [Elastic Network
   Adapter](https://aws.amazon.com/blogs/aws/elastic-network-adapter-high-performance-network-interface-for-amazon-ec2/)
 support
-  only instance types that support it
 - Local ephemeral storage mounted at `/media/ephemeral0`
 - Default user account `ec2-user`
 
