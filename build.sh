@@ -5,7 +5,7 @@
 
 DEVICE=/dev/xvdb
 ROOTFS=/rootfs
-IXGBEVF_VER=3.3.2
+IXGBEVF_VER=3.2.2
 ENA_VER=1.1.3
 ENA_COMMIT=3ac3e0b
 TMPDIR=/tmp
@@ -173,6 +173,10 @@ KVER=$(chroot $ROOTFS rpm -q kernel | sed -e 's/^kernel-//')
 yum --installroot=$ROOTFS --nogpgcheck -y install dkms make
 curl -L http://sourceforge.net/projects/e1000/files/ixgbevf%20stable/${IXGBEVF_VER}/ixgbevf-${IXGBEVF_VER}.tar.gz/download > /tmp/ixgbevf.tar.gz
 tar zxf /tmp/ixgbevf.tar.gz -C ${ROOTFS}/usr/src
+# Newer drivers are missing InterruptThrottleRate - patch the old one instead
+yum -y install patch
+curl -L https://sourceforge.net/p/e1000/bugs/_discuss/thread/a5c4e75f/837d/attachment/ixgbevf-3.2.2_rhel73.patch |
+  patch -p1 -d ${ROOTFS}/usr/src/ixgbevf-${IXGBEVF_VER}
 cat > ${ROOTFS}/usr/src/ixgbevf-${IXGBEVF_VER}/dkms.conf << END
 PACKAGE_NAME="ixgbevf"
 PACKAGE_VERSION="${IXGBEVF_VER}"
