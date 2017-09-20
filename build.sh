@@ -5,9 +5,6 @@
 
 DEVICE=/dev/xvdb
 ROOTFS=/rootfs
-IXGBEVF_VER=3.2.2
-ENA_VER=1.1.3
-ENA_COMMIT=3ac3e0b
 TMPDIR=/tmp
 
 cat | parted ${DEVICE} << END
@@ -26,11 +23,13 @@ mount ${DEVICE}2 $ROOTFS
 ### Basic CentOS Install
 rpm --root=$ROOTFS --initdb
 rpm --root=$ROOTFS -ivh \
-  http://mirror.bytemark.co.uk/centos/7.3.1611/os/x86_64/Packages/centos-release-7-3.1611.el7.centos.x86_64.rpm
+  https://mirror.bytemark.co.uk/centos/7.4.1708/os/x86_64/Packages/centos-release-7-4.1708.el7.centos.x86_64.rpm
 # Install necessary packages
 yum --installroot=$ROOTFS --nogpgcheck -y groupinstall core
-yum --installroot=$ROOTFS --nogpgcheck -y install openssh-server grub2 acpid tuned kernel deltarpm epel-release
-yum --installroot=$ROOTFS -C -y remove NetworkManager --setopt="clean_requirements_on_remove=1"
+yum --installroot=$ROOTFS --nogpgcheck -y install openssh-server grub2 acpid deltarpm cloud-init cloud-utils-growpart gdisk
+# Remove unnecessary packages
+UNNECESSARY="NetworkManager firewalld linux-firmware ivtv-firmware iwl*firmware"
+yum --installroot=$ROOTFS -C -y remove $UNNECESSARY --setopt="clean_requirements_on_remove=1"
 
 # Create homedir for root
 cp -a /etc/skel/.bash* ${ROOTFS}/root
@@ -84,8 +83,8 @@ mount -t proc none ${ROOTFS}/proc
 # Install grub2
 chroot ${ROOTFS} grub2-mkconfig -o /boot/grub2/grub.cfg
 chroot ${ROOTFS} grub2-install $DEVICE
-# Install cloud-init from epel
-chroot ${ROOTFS} yum --nogpgcheck -y install cloud-init cloud-utils-growpart gdisk
+
+# Startup services
 chroot ${ROOTFS} systemctl enable sshd.service
 chroot ${ROOTFS} systemctl enable cloud-init.service
 chroot ${ROOTFS} systemctl mask tmp.mount
@@ -167,58 +166,12 @@ datasource_list: [ Ec2, None ]
 # vim:syntax=yaml
 END
 
-# Add additional AWS drivers
-KVER=$(chroot $ROOTFS rpm -q kernel | sed -e 's/^kernel-//')
-# Enable sr-iov
-yum --installroot=$ROOTFS --nogpgcheck -y install dkms make
-curl -L http://sourceforge.net/projects/e1000/files/ixgbevf%20stable/${IXGBEVF_VER}/ixgbevf-${IXGBEVF_VER}.tar.gz/download > /tmp/ixgbevf.tar.gz
-tar zxf /tmp/ixgbevf.tar.gz -C ${ROOTFS}/usr/src
-# Newer drivers are missing InterruptThrottleRate - patch the old one instead
-yum -y install patch
-curl -L https://sourceforge.net/p/e1000/bugs/_discuss/thread/a5c4e75f/837d/attachment/ixgbevf-3.2.2_rhel73.patch |
-  patch -p1 -d ${ROOTFS}/usr/src/ixgbevf-${IXGBEVF_VER}
-cat > ${ROOTFS}/usr/src/ixgbevf-${IXGBEVF_VER}/dkms.conf << END
-PACKAGE_NAME="ixgbevf"
-PACKAGE_VERSION="${IXGBEVF_VER}"
-CLEAN="cd src/; make clean"
-MAKE="cd src/; make BUILD_KERNEL=\${kernelver}"
-BUILT_MODULE_LOCATION[0]="src/"
-BUILT_MODULE_NAME[0]="ixgbevf"
-DEST_MODULE_LOCATION[0]="/updates"
-DEST_MODULE_NAME[0]="ixgbevf"
-AUTOINSTALL="yes"
-END
-chroot $ROOTFS dkms add -m ixgbevf -v ${IXGBEVF_VER}
-chroot $ROOTFS dkms build -m ixgbevf -v ${IXGBEVF_VER} -k $KVER
-chroot $ROOTFS dkms install -m ixgbevf -v ${IXGBEVF_VER} -k $KVER
-echo "options ixgbevf InterruptThrottleRate=1,1,1,1,1,1,1,1" > ${ROOTFS}/etc/modprobe.d/ixgbevf.conf
-# Enable Amazon ENA
-# Create an archive file locally from git first
-yum -y install git patch
-mkdir -p ${TMPDIR}/ena
-git clone https://github.com/amzn/amzn-drivers.git ${TMPDIR}/ena
-cd ${TMPDIR}/ena
-git archive --prefix ena-${ENA_VER}/ ${ENA_COMMIT} | tar xC ${ROOTFS}/usr/src
-cat > ${ROOTFS}/usr/src/ena-${ENA_VER}/dkms.conf << END
-PACKAGE_NAME="ena"
-PACKAGE_VERSION="${ENA_VER}"
-CLEAN="make -C kernel/linux/ena clean"
-MAKE="make -C kernel/linux/ena/ BUILD_KERNEL=\${kernelver}"
-BUILT_MODULE_NAME[0]="ena"
-BUILT_MODULE_LOCATION="kernel/linux/ena"
-DEST_MODULE_LOCATION[0]="/updates"
-DEST_MODULE_NAME[0]="ena"
-AUTOINSTALL="yes"
-END
-chroot $ROOTFS dkms add -m ena -v ${ENA_VER}
-chroot $ROOTFS dkms dkms build -m ena -v ${ENA_VER} -k ${KVER}
-chroot $ROOTFS dkms install -m ena -v ${ENA_VER} -k ${KVER}
-
 #Disable SELinux
 sed -i -e 's/^\(SELINUX=\).*/\1disabled/' ${ROOTFS}/etc/selinux/config
+# Clean up
+yum --installroot=$ROOTFS clean all
+truncate -c -s 0 ${ROOTFS}/var/log/yum.log
 
-# Remove EPEL
-yum --installroot=$ROOTFS -C -y remove epel-release --setopt="clean_requirements_on_remove=1"
 
 # We're done!
 for d in $BINDMNTS ; do
