@@ -26,7 +26,8 @@ rpm --root=$ROOTFS -ivh \
   https://mirror.bytemark.co.uk/centos/7.4.1708/os/x86_64/Packages/centos-release-7-4.1708.el7.centos.x86_64.rpm
 # Install necessary packages
 yum --installroot=$ROOTFS --nogpgcheck -y groupinstall core
-yum --installroot=$ROOTFS --nogpgcheck -y install openssh-server grub2 acpid deltarpm cloud-init cloud-utils-growpart gdisk dracut-config-generic
+yum --installroot=$ROOTFS --nogpgcheck -y install openssh-server grub2 acpid deltarpm nvme-cli dracut-config-generic \
+    cloud-init cloud-utils-growpart gdisk
 # Remove unnecessary packages
 UNNECESSARY="NetworkManager firewalld linux-firmware ivtv-firmware iwl*firmware"
 yum --installroot=$ROOTFS -C -y remove $UNNECESSARY --setopt="clean_requirements_on_remove=1"
@@ -162,6 +163,10 @@ mounts:
  - [ swap, none, swap, sw, "0", "0" ]
 
 datasource_list: [ Ec2, None ]
+datasource:
+  Ec2:
+    timeout: 50
+    max_wait: 200
 
 # vim:syntax=yaml
 END
